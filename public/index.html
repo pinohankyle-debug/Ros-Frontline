@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#101820"><title>ROS FRONTLINE | Community Project</title>
+<style>
+:root{color-scheme:dark;--bg:#0b1118;--panel:#121d28;--line:#263746;--text:#edf3f7;--muted:#9aabb8;--gold:#d4a64b;--green:#70d6a0}
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:radial-gradient(ellipse at 50% -20%,#24394b,transparent 55%),var(--bg);color:var(--text);min-height:100vh}
+.wrap{max-width:1000px;margin:auto;padding:26px 18px 55px}header{display:flex;justify-content:space-between;gap:16px;padding:12px 0 32px}.brand{font-weight:900;letter-spacing:.16em}.brand span,h1 span{color:var(--gold)}.tag{text-align:right;color:var(--muted);font-size:10px;letter-spacing:.14em}
+.hero,.card{border:1px solid var(--line);border-radius:18px;background:linear-gradient(135deg,#14222f,#0d151e);padding:clamp(22px,5vw,55px)}
+.eyebrow{color:var(--gold);font-size:11px;letter-spacing:.2em;font-weight:bold}h1{font-size:clamp(38px,8vw,72px);line-height:.98;margin:18px 0;letter-spacing:-.04em}.lead{color:#bdcbd5;line-height:1.7;max-width:650px}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:24px}button{border:0;border-radius:8px;padding:13px 17px;font-weight:bold;background:var(--gold);color:#17130b;cursor:pointer}button.secondary{background:#1d2b38;border:1px solid #405365;color:var(--text)}button:disabled{opacity:.5;cursor:wait}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}.card{padding:22px;background:var(--panel)}h2{font-size:18px;margin:0 0 14px}
+label{display:block;color:var(--muted);font-size:12px;margin:12px 0 6px}input{width:100%;padding:12px;border-radius:8px;border:1px solid #344858;background:#0b141d;color:white}.status{white-space:pre-wrap;overflow-wrap:anywhere;min-height:38px;margin-top:12px;color:var(--green);font-size:13px;line-height:1.5}.small,footer{color:var(--muted);font-size:11px;line-height:1.6}footer{text-align:center;margin-top:24px}
+@media(max-width:680px){.grid{grid-template-columns:1fr}}
+</style></head>
+<body><main class="wrap">
+<header><div class="brand">ROS <span>FRONTLINE</span></div><div class="tag">COMMUNITY PRE-REGISTRATION<br>UNOFFICIAL COMMUNITY PROJECT</div></header>
+<section class="hero"><div class="eyebrow">COMMUNITY PROJECT • PLAYER HUB</div><h1>RETURN TO THE<br><span>FRONTLINE.</span></h1>
+<p class="lead">A community-built project focused on bringing players together. Create an account or sign in to access the community player hub.</p>
+<div class="actions"><button onclick="document.querySelector('#register').scrollIntoView({behavior:'smooth'})">CREATE ACCOUNT</button><button class="secondary" onclick="document.querySelector('#login').scrollIntoView({behavior:'smooth'})">PLAYER LOGIN</button></div></section>
+<section class="grid">
+<div class="card" id="register"><h2>Community registration</h2><form id="registerForm">
+<label>Username</label><input id="regUsername" autocomplete="username" required minlength="3">
+<label>Email</label><input id="regEmail" type="email" autocomplete="email" required>
+<label>Password</label><input id="regPassword" type="password" autocomplete="new-password" required minlength="8">
+<p class="small">Use a unique password. This unofficial community project is not affiliated with the original game's publisher.</p><button>REGISTER</button></form><div class="status" id="registerStatus"></div></div>
+<div class="card" id="login"><h2>Player login</h2><form id="loginForm">
+<label>Email</label><input id="loginEmail" type="email" autocomplete="email" required>
+<label>Password</label><input id="loginPassword" type="password" autocomplete="current-password" required>
+<button>LOGIN</button></form><div class="status" id="loginStatus"></div><hr style="border:0;border-top:1px solid var(--line);margin:18px 0">
+<h2>Game session</h2><button class="secondary" id="playButton" disabled>REQUEST GAME SESSION</button><div class="status" id="gameStatus">Sign in first to enable session requests.</div></div>
+</section>
+<footer>UNOFFICIAL COMMUNITY PROJECT • NOT AFFILIATED WITH OR ENDORSED BY THE ORIGINAL GAME'S PUBLISHER.<br>Use only authorized game assets and services.</footer>
+</main>
+<script>
+const API="/api";let authToken="";
+async function api(path,body,method="POST"){const opts={method,headers:{"Content-Type":"application/json",...(authToken?{Authorization:"Bearer "+authToken}:{})},cache:"no-store"};if(body!==undefined)opts.body=JSON.stringify(body);const r=await fetch(API+path,opts);const d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d.error||d.message||("HTTP "+r.status));return d}
+registerForm.addEventListener("submit",async e=>{e.preventDefault();registerStatus.textContent="Creating account...";try{const d=await api("/v1/register",{username:regUsername.value.trim(),email:regEmail.value.trim(),password:regPassword.value});registerStatus.textContent=d.message||"Registration successful. Sign in now."}catch(x){registerStatus.textContent="Registration failed: "+x.message}});
+loginForm.addEventListener("submit",async e=>{e.preventDefault();loginStatus.textContent="Signing in...";try{const d=await api("/v1/login",{email:loginEmail.value.trim(),password:loginPassword.value});authToken=d.token||d.access_token||"";if(!authToken)throw Error("Login response has no token/access_token field. Adjust this field to match your API.");playButton.disabled=false;loginStatus.textContent="LOGIN SUCCESSFUL";gameStatus.textContent="Signed in. You can request a game session."}catch(x){loginStatus.textContent="Login failed: "+x.message}});
+playButton.addEventListener("click",async()=>{playButton.disabled=true;gameStatus.textContent="Requesting game ticket...";try{const t=await api("/v1/tickets");const ticket=t.ticket||t.game_ticket||t.token;if(!ticket)throw Error("Ticket response needs ticket/game_ticket/token field mapping.");gameStatus.textContent="Redeeming game ticket...";const s=await api("/v1/game/redeem",{ticket});sessionStorage.setItem("ros_frontline_game_session",JSON.stringify(s));gameStatus.textContent=s.game_token?"GAME SESSION CREATED\\nCredentials received. This website does not start Android native engine or GNS.":"Session response received. Check API response field names."}catch(x){gameStatus.textContent="SESSION FAILED: "+x.message}finally{playButton.disabled=false}});
+</script></body></html>

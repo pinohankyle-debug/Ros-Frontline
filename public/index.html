@@ -33,10 +33,73 @@ label{display:block;color:var(--muted);font-size:12px;margin:12px 0 6px}input{wi
 </section>
 <footer>UNOFFICIAL COMMUNITY PROJECT • NOT AFFILIATED WITH OR ENDORSED BY THE ORIGINAL GAME'S PUBLISHER.<br>Use only authorized game assets and services.</footer>
 </main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-const API="/api";let authToken="";
-async function api(path,body,method="POST"){const opts={method,headers:{"Content-Type":"application/json",...(authToken?{Authorization:"Bearer "+authToken}:{})},cache:"no-store"};if(body!==undefined)opts.body=JSON.stringify(body);const r=await fetch(API+path,opts);const d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d.error||d.message||("HTTP "+r.status));return d}
-registerForm.addEventListener("submit",async e=>{e.preventDefault();registerStatus.textContent="Creating account...";try{const d=await api("/v1/register",{username:regUsername.value.trim(),email:regEmail.value.trim(),password:regPassword.value});registerStatus.textContent=d.message||"Registration successful. Sign in now."}catch(x){registerStatus.textContent="Registration failed: "+x.message}});
-loginForm.addEventListener("submit",async e=>{e.preventDefault();loginStatus.textContent="Signing in...";try{const d=await api("/v1/login",{email:loginEmail.value.trim(),password:loginPassword.value});authToken=d.token||d.access_token||"";if(!authToken)throw Error("Login response has no token/access_token field. Adjust this field to match your API.");playButton.disabled=false;loginStatus.textContent="LOGIN SUCCESSFUL";gameStatus.textContent="Signed in. You can request a game session."}catch(x){loginStatus.textContent="Login failed: "+x.message}});
-playButton.addEventListener("click",async()=>{playButton.disabled=true;gameStatus.textContent="Requesting game ticket...";try{const t=await api("/v1/tickets");const ticket=t.ticket||t.game_ticket||t.token;if(!ticket)throw Error("Ticket response needs ticket/game_ticket/token field mapping.");gameStatus.textContent="Redeeming game ticket...";const s=await api("/v1/game/redeem",{ticket});sessionStorage.setItem("ros_frontline_game_session",JSON.stringify(s));gameStatus.textContent=s.game_token?"GAME SESSION CREATED\\nCredentials received. This website does not start Android native engine or GNS.":"Session response received. Check API response field names."}catch(x){gameStatus.textContent="SESSION FAILED: "+x.message}finally{playButton.disabled=false}});
+const SUPABASE_URL = "https://wmjsndtbqocrxwjhreje.supabase.co";
+const SUPABASE_KEY = "sb_publishable_jG0xMn7VwuwooTrwfNEKMg_hXDhWfDm";
+
+const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const registerForm = document.getElementById("registerForm");
+const loginForm = document.getElementById("loginForm");
+const registerStatus = document.getElementById("registerStatus");
+const loginStatus = document.getElementById("loginStatus");
+const gameStatus = document.getElementById("gameStatus");
+const playButton = document.getElementById("playButton");
+
+registerForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  registerStatus.textContent = "Creating account...";
+  try {
+    const username = document.getElementById("regUsername").value.trim();
+    const email = document.getElementById("regEmail").value.trim();
+    const password = document.getElementById("regPassword").value;
+
+    const { data, error } = await client.auth.signUp({
+      email,
+      password,
+      options: { data: { username } }
+    });
+
+    if (error) throw error;
+
+    registerStatus.textContent = data.session
+      ? "REGISTRATION SUCCESSFUL. You can now log in."
+      : "Account created. Check your email if confirmation is required.";
+  } catch (error) {
+    registerStatus.textContent = "Registration failed: " + error.message;
+  }
+});
+
+loginForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  loginStatus.textContent = "Signing in...";
+  try {
+    const email = document.getElementById("loginEmail").value.trim();
+    const password = document.getElementById("loginPassword").value;
+
+    const { data, error } = await client.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    if (error) throw error;
+
+    loginStatus.textContent =
+      "LOGIN SUCCESSFUL. Welcome, " +
+      (data.user.user_metadata.username || data.user.email) + ".";
+
+    gameStatus.textContent =
+      "Your account is authenticated. Game session service is not connected yet.";
+  } catch (error) {
+    loginStatus.textContent = "Login failed: " + error.message;
+  }
+});
+
+client.auth.onAuthStateChange((event, session) => {
+  if (session) {
+    gameStatus.textContent =
+      "Signed in. ROS FRONTLINE account authentication is active.";
+  }
+});
 </script></body></html>
